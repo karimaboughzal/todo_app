@@ -3,6 +3,9 @@ import '../models/task.dart';
 import '../services/storage_service.dart';
 import '../widgets/task_item.dart';
 import '../widgets/add_task_dialog.dart';
+import 'statistics_page.dart';
+import 'completed_tasks_page.dart';
+import 'settings_page.dart';
 
 class TodoListPage extends StatefulWidget {
   const TodoListPage({Key? key}) : super(key: key);
@@ -14,7 +17,6 @@ class TodoListPage extends StatefulWidget {
 class _TodoListPageState extends State<TodoListPage> {
   final StorageService _storageService = StorageService();
   List<Task> _tasks = [];
-  bool _showCompletedOnly = false;
   bool _isLoading = true;
 
   @override
@@ -70,12 +72,17 @@ class _TodoListPageState extends State<TodoListPage> {
     _saveTasks();
   }
 
-  // Obtenir les tâches filtrées
-  List<Task> _getFilteredTasks() {
-    if (_showCompletedOnly) {
-      return _tasks.where((task) => task.isCompleted).toList();
-    }
-    return _tasks;
+  // Supprimer toutes les tâches
+  void _clearAllTasks() {
+    setState(() {
+      _tasks.clear();
+    });
+    _saveTasks();
+  }
+
+  // Obtenir les tâches en cours
+  List<Task> _getPendingTasks() {
+    return _tasks.where((task) => !task.isCompleted).toList();
   }
 
   // Afficher le dialog d'ajout de tâche
@@ -88,37 +95,165 @@ class _TodoListPageState extends State<TodoListPage> {
     );
   }
 
+  // Construire le Drawer (menu latéral)
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade700, Colors.blue.shade500],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person, size: 40, color: Colors.blue),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'Gestionnaire de Tâches',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Organisez votre vie',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home),
+            title: const Text('Accueil'),
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.check_circle),
+            title: const Text('Tâches complétées'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CompletedTasksPage(
+                    tasks: _tasks,
+                    onToggle: _toggleTaskCompletion,
+                    onDelete: _deleteTask,
+                  ),
+                ),
+              ).then((_) => setState(() {})); // Rafraîchir après retour
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.bar_chart),
+            title: const Text('Statistiques'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StatisticsPage(tasks: _tasks),
+                ),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: const Text('Paramètres'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SettingsPage(
+                    onClearAll: _clearAllTasks,
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.info),
+            title: const Text('À propos'),
+            onTap: () {
+              Navigator.pop(context);
+              _showAboutDialog();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Afficher le dialog À propos
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('À propos'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Gestionnaire de Tâches',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            SizedBox(height: 8),
+            Text('Version: 1.0.0'),
+            SizedBox(height: 8),
+            Text('Développé avec Flutter & Dart'),
+            SizedBox(height: 8),
+            Text('Application de gestion de tâches pour organiser votre quotidien.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final filteredTasks = _getFilteredTasks();
+    final pendingTasks = _getPendingTasks();
     final completedCount = _tasks.where((t) => t.isCompleted).length;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mes Tâches'),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _showCompletedOnly ? Icons.check_box : Icons.check_box_outline_blank,
-            ),
-            onPressed: () {
-              setState(() {
-                _showCompletedOnly = !_showCompletedOnly;
-              });
-            },
-            tooltip: _showCompletedOnly ? 'Afficher toutes' : 'Afficher complétées',
-          ),
-        ],
       ),
+      drawer: _buildDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 _buildStatsSection(completedCount),
                 Expanded(
-                  child: filteredTasks.isEmpty
+                  child: pendingTasks.isEmpty
                       ? _buildEmptyState()
-                      : _buildTaskList(filteredTasks),
+                      : _buildTaskList(pendingTasks),
                 ),
               ],
             ),
@@ -182,9 +317,7 @@ class _TodoListPageState extends State<TodoListPage> {
           Icon(Icons.task_alt, size: 80, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(
-            _showCompletedOnly
-                ? 'Aucune tâche complétée'
-                : 'Aucune tâche pour le moment',
+            'Aucune tâche en cours',
             style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
