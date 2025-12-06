@@ -4,7 +4,7 @@ import '../services/storage_service.dart';
 class SettingsPage extends StatelessWidget {
   final Function() onClearAll;
 
-  const SettingsPage({Key? key, required this.onClearAll}) : super(key: key);
+  const SettingsPage({super.key, required this.onClearAll});
 
   @override
   Widget build(BuildContext context) {

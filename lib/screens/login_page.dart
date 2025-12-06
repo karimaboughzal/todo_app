@@ -5,7 +5,7 @@ import 'forgot_password_page.dart';
 import 'todo_list_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();

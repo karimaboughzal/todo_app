@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import '../models/friend.dart';
 import '../services/storage_service.dart';
 import '../services/auth_service.dart';
+import '../services/friends_service.dart';
 import '../widgets/task_item.dart';
 import '../widgets/add_task_dialog.dart';
 import 'statistics_page.dart';
 import 'completed_tasks_page.dart';
 import 'settings_page.dart';
 import 'login_page.dart';
+import 'calendar_page.dart';
+import 'friends_page.dart';
 
 class TodoListPage extends StatefulWidget {
   const TodoListPage({Key? key}) : super(key: key);
@@ -19,7 +23,9 @@ class TodoListPage extends StatefulWidget {
 class _TodoListPageState extends State<TodoListPage> {
   final StorageService _storageService = StorageService();
   final AuthService _authService = AuthService();
+  final FriendsService _friendsService = FriendsService();
   List<Task> _tasks = [];
+  List<Friend> _friends = [];
   bool _isLoading = true;
 
   @override
@@ -28,16 +34,26 @@ class _TodoListPageState extends State<TodoListPage> {
     _loadTasks();
   }
 
-  // Charger les tâches
+  // Charger les tâches et les amis
   Future<void> _loadTasks() async {
     setState(() => _isLoading = true);
     
     final tasks = await _storageService.loadTasks();
+    final user = await _authService.getCurrentUser();
     
-    setState(() {
-      _tasks = tasks;
-      _isLoading = false;
-    });
+    if (user != null) {
+      final friends = await _friendsService.getFriendsForUser(user['id']);
+      setState(() {
+        _tasks = tasks;
+        _friends = friends;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _tasks = tasks;
+        _isLoading = false;
+      });
+    }
   }
 
   // Sauvegarder les tâches
@@ -46,13 +62,19 @@ class _TodoListPageState extends State<TodoListPage> {
   }
 
   // Ajouter une tâche
-  void _addTask(String title, String description) {
+  void _addTask(String title, String description, DateTime? dueDate, String? assignedTo, String status) async {
+    final user = await _authService.getCurrentUser();
+    
     setState(() {
       _tasks.add(Task(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: title,
         description: description,
         createdAt: DateTime.now(),
+        dueDate: dueDate,
+        assignedTo: assignedTo,
+        createdBy: user?['id'] ?? '',
+        status: status,
       ));
     });
     _saveTasks();
@@ -63,6 +85,11 @@ class _TodoListPageState extends State<TodoListPage> {
     setState(() {
       final task = _tasks.firstWhere((t) => t.id == id);
       task.isCompleted = !task.isCompleted;
+      if (task.isCompleted) {
+        task.status = 'completed';
+      } else {
+        task.status = task.status == 'completed' ? 'in_progress' : task.status;
+      }
     });
     _saveTasks();
   }
@@ -94,6 +121,7 @@ class _TodoListPageState extends State<TodoListPage> {
       context: context,
       builder: (context) => AddTaskDialog(
         onAddTask: _addTask,
+        friends: _friends,
       ),
     );
   }
@@ -113,11 +141,11 @@ class _TodoListPageState extends State<TodoListPage> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             SizedBox(height: 8),
-            Text('Version: 1.0.0'),
+            Text('Version: 2.0.0'),
             SizedBox(height: 8),
             Text('Développé avec Flutter & Dart'),
             SizedBox(height: 8),
-            Text('Application de gestion de tâches pour organiser votre quotidien.'),
+            Text('Application collaborative de gestion de tâches.'),
           ],
         ),
         actions: [
@@ -182,6 +210,36 @@ class _TodoListPageState extends State<TodoListPage> {
                 title: const Text('Accueil'),
                 onTap: () {
                   Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.calendar_month),
+                title: const Text('Calendrier'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CalendarPage(
+                        tasks: _tasks,
+                        onToggle: _toggleTaskCompletion,
+                        onDelete: _deleteTask,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.people),
+                title: const Text('Mes Amis'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FriendsPage(),
+                    ),
+                  ).then((_) => _loadTasks());
                 },
               ),
               ListTile(
@@ -273,6 +331,24 @@ class _TodoListPageState extends State<TodoListPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mes Tâches'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CalendarPage(
+                    tasks: _tasks,
+                    onToggle: _toggleTaskCompletion,
+                    onDelete: _deleteTask,
+                  ),
+                ),
+              );
+            },
+            tooltip: 'Calendrier',
+          ),
+        ],
       ),
       drawer: _buildDrawer(),
       body: _isLoading

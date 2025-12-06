@@ -8,11 +8,11 @@ class CompletedTasksPage extends StatelessWidget {
   final Function(String) onDelete;
 
   const CompletedTasksPage({
-    Key? key,
+    super.key,
     required this.tasks,
     required this.onToggle,
     required this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

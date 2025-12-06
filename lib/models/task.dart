@@ -4,6 +4,10 @@ class Task {
   String description;
   bool isCompleted;
   DateTime createdAt;
+  DateTime? dueDate; // Date d'échéance
+  String? assignedTo; // ID de l'ami assigné
+  String createdBy; // ID du créateur
+  String status; // 'todo', 'in_progress', 'completed'
 
   Task({
     required this.id,
@@ -11,6 +15,10 @@ class Task {
     this.description = '',
     this.isCompleted = false,
     required this.createdAt,
+    this.dueDate,
+    this.assignedTo,
+    required this.createdBy,
+    this.status = 'todo',
   });
 
   // Convertir un objet Task en JSON
@@ -20,6 +28,10 @@ class Task {
         'description': description,
         'isCompleted': isCompleted,
         'createdAt': createdAt.toIso8601String(),
+        'dueDate': dueDate?.toIso8601String(),
+        'assignedTo': assignedTo,
+        'createdBy': createdBy,
+        'status': status,
       };
 
   // Créer un objet Task à partir de JSON
@@ -29,5 +41,9 @@ class Task {
         description: json['description'] ?? '',
         isCompleted: json['isCompleted'] ?? false,
         createdAt: DateTime.parse(json['createdAt']),
+        dueDate: json['dueDate'] != null ? DateTime.parse(json['dueDate']) : null,
+        assignedTo: json['assignedTo'],
+        createdBy: json['createdBy'] ?? '',
+        status: json['status'] ?? 'todo',
       );
 }

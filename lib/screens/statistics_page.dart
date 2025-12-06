@@ -4,7 +4,7 @@ import '../models/task.dart';
 class StatisticsPage extends StatelessWidget {
   final List<Task> tasks;
 
-  const StatisticsPage({Key? key, required this.tasks}) : super(key: key);
+  const StatisticsPage({super.key, required this.tasks});
 
   @override
   Widget build(BuildContext context) {
